@@ -33,21 +33,24 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+int channels;
+char **g_argv;
 
 static char VERSION[] = "0.1.0";
 
-static uint8_t pin2gpio[] = {
-	4,	// P1-7
-	17,	// P1-11
-	18,	// P1-12
-	21,	// P1-13
-	22,	// P1-15
-	23,	// P1-16
-	24,	// P1-18
-	25,	// P1-22
+uint8_t defaultpins[] = {
+4,	// P1-7
+17,	// P1-11
+18,	// P1-12
+21,	// P1-13
+22,	// P1-15
+23,	// P1-16
+24,	// P1-18
+25,	// P1-22
 };
+static uint8_t *pin2gpio;
 
-#define NUM_CHANNELS		(sizeof(pin2gpio)/sizeof(pin2gpio[0]))
+#define NUM_CHANNELS		channels
 
 #define DEVFILE			"/dev/pi-blaster"
 
@@ -163,7 +166,7 @@ static volatile uint32_t *gpio_reg;
 static int delay_hw = DELAY_VIA_PWM;
 static int invert_mode = 0;
 
-static float channel_pwm[NUM_CHANNELS];
+static float *channel_pwm;
 
 static void set_pwm(int channel, float value);
 static void update_pwm();
@@ -279,6 +282,19 @@ update_pwm()
 	struct ctl *ctl = (struct ctl *)virtbase;
 	int i, j;
 	uint32_t mask;
+
+
+
+
+
+
+
+
+
+
+
+
+
 	
 	/* First we turn on the channels that need to be on */
 	/*   Take the first DMA Packet and set it's target to start pulse */
@@ -317,7 +333,6 @@ make_pagemap(void)
 {
 	int i, fd, memfd, pid;
 	char pagemap_fn[64];
-
 	page_map = malloc(NUM_PAGES * sizeof(*page_map));
 	if (page_map == 0)
 		fatal("pi-blaster: Failed to malloc page_map: %m\n");
@@ -551,7 +566,9 @@ parseargs(int argc, char **argv)
 
 		case 'h':
 			fprintf(stderr, "%s version %s\n", argv[0], VERSION);
-			fprintf(stderr, "Usage: %s [-hipv]\n"
+			fprintf(stderr, "Usage: %s [-hipv] [pin] [pin] [pin]...\n"
+				"pin            - is the pin for PWM. Multiple pins seperated by a space accepted.\n"
+				"		E.g  ./sudo pi-blaster 22 25 17\n"
 				"-h (--help)    - this information\n"
 				"-i (--invert)  - invert pin output (pulse LOW)\n"
 				"-p (--pcm)     - use pcm for dmascheduling\n"
@@ -582,9 +599,25 @@ parseargs(int argc, char **argv)
 }
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	int i;
+	channels = argc-1;
+	if (channels>0){
+ 		pin2gpio = malloc(sizeof(uint8_t)*channels);
+		channel_pwm = malloc(sizeof(float)*channels);
+		for (i=0;i<channels;i++)
+		pin2gpio[i] = atoi(argv[i+1]) ;
+	}
+	else{
+		channels = 8;
+	 	pin2gpio = malloc(sizeof(uint8_t)*channels);
+		channel_pwm = malloc(sizeof(float)*channels);
+		for (i=0;i<channels;i++){
+			pin2gpio[i] = defaultpins[i];
+		}
+	}
+
 
 	parseargs(argc, argv);
 
@@ -610,7 +643,6 @@ main(int argc, char **argv)
 		fatal("pi-blaster: Failed to mmap physical pages: %m\n");
 	if ((unsigned long)virtbase & (PAGE_SIZE-1))
 		fatal("pi-blaster: Virtual address is not page aligned\n");
-
 	make_pagemap();
 
 	for (i = 0; i < NUM_CHANNELS; i++) {
