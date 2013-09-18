@@ -17,10 +17,14 @@ To start pi-blaster and have it relaunched automatically on every reboot:
 
 ## How to start manually
 
-To start pi-blaster manually run:
+To start pi-blaster manually run and enable all the default pins:
 
     sudo ./pi-blaster
     
+To start pi-blaster manually and specify the pins you want PWM enabled on:
+
+    sudo ./pi-blaster 22 24 17 16 
+
 ## How to uninstall
 
 Simply run:
